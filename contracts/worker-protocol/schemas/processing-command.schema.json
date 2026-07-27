@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.spokenbase.dev/worker-protocol/v1/processing-command.schema.json",
+  "title": "Spokenbase processing command",
+  "type": "object",
+  "required": [
+    "protocolVersion",
+    "messageId",
+    "idempotencyKey",
+    "createdAt",
+    "commandType",
+    "processingRunId",
+    "organizationId",
+    "stage",
+    "attempt"
+  ],
+  "properties": {
+    "protocolVersion": {
+      "const": "1"
+    },
+    "messageId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "commandType": {
+      "const": "run-stage"
+    },
+    "processingRunId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "organizationId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "stage": {
+      "enum": [
+        "ingest",
+        "validate",
+        "inspect",
+        "normalize",
+        "voice-activity-detection",
+        "transcribe",
+        "diarize",
+        "align",
+        "clean",
+        "apply-glossary",
+        "summarize",
+        "index",
+        "export",
+        "maintenance"
+      ]
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "requiredCapabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "uniqueItems": true,
+      "default": []
+    }
+  },
+  "additionalProperties": false,
+  "x-spdx-license-identifier": "Apache-2.0"
+}

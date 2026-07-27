@@ -11,7 +11,7 @@ Community includes:
 - Nuxt browser application and PWA capabilities where useful;
 - NestJS REST API;
 - PostgreSQL;
-- Redis and BullMQ;
+- Redpanda;
 - local filesystem or S3-compatible storage;
 - local CPU and NVIDIA GPU workers;
 - customer-operated remote workers;
@@ -38,13 +38,13 @@ Browser
   -> Nuxt web service
      -> NestJS REST API
         -> PostgreSQL
-        -> Redis/BullMQ
+        -> Redpanda
         -> local filesystem or S3-compatible storage
         -> optional local or remote workers
         -> optional organization-approved external providers
 ```
 
-Keep deployable services lean. Do not add Kafka, Kubernetes-only dependencies, a workflow engine, a vector database, or another application service without a demonstrated requirement.
+Keep deployable services lean. Redpanda is the selected reference Kafka-compatible command and event backbone. Keep application protocols Kafka-compatible and avoid Redpanda enterprise-only APIs. Do not add another reference broker or Kafka distribution, Kubernetes-only dependencies, a workflow engine, a vector database, or another application service without a demonstrated requirement.
 
 Local processing means processing on customer-controlled worker infrastructure. It does not imply a desktop application.
 
@@ -80,8 +80,8 @@ Local processing means processing on customer-controlled worker infrastructure. 
 - PostgreSQL;
 - generated MikroORM migrations;
 - PostgreSQL full-text search;
-- Redis;
-- BullMQ;
+- Redpanda;
+- PostgreSQL transactional outbox for durable command publication;
 - local filesystem or S3-compatible object storage;
 - MinIO only as a development or reference-Compose S3 service.
 
@@ -104,7 +104,7 @@ Local processing means processing on customer-controlled worker infrastructure. 
 - Playwright;
 - `@nestjs/testing`;
 - Supertest;
-- Testcontainers with real PostgreSQL and Redis.
+- Testcontainers with real PostgreSQL and Redpanda.
 
 ---
 
@@ -633,7 +633,7 @@ Rules:
 - deployment-owned connections are neutral and optional;
 - encrypt credentials with a deployment master key;
 - support key versioning and rotation;
-- never put keys in BullMQ payloads;
+- never put keys in Redpanda records;
 - resolve decrypted credentials only at provider invocation;
 - never return or log decrypted keys;
 - show only masked fingerprints;
@@ -655,14 +655,23 @@ Use versioned JSON Schema or OpenAPI documents as the source of truth. Generate 
 
 Workers:
 
-- register through the API with scoped registration tokens;
-- pull jobs through an authenticated worker-control API;
-- never connect directly to PostgreSQL or Redis;
+- run a minimal FastAPI process with lifecycle-managed model and queue resources;
+- expose only local or trusted-network liveness, readiness, version, and capability endpoints;
+- consume versioned Redpanda command topics through outbound connections;
+- use TLS and SASL whenever the broker is outside the trusted Compose network;
+- never connect directly to PostgreSQL;
 - never receive provider credentials;
-- receive short-lived signed media-download and result-upload URLs;
+- claim commands idempotently before committing consumer offsets;
+- obtain short-lived signed media-download and result-upload URLs after a claim, not from long-lived queue records;
 - use heartbeats and expiring job leases;
 - report version, CPU, GPU, VRAM, installed models, capabilities, active jobs, and health;
 - support explicit cancellation and honest recovery after disconnection.
+
+FastAPI is the worker control and observability surface. Do not add a synchronous public upload-to-transcript endpoint and do not use FastAPI `BackgroundTasks` for transcription. Long-running work comes from Redpanda and runs outside the ASGI event loop in a bounded executor.
+
+The broker poll loop must also remain non-blocking. It validates, claims, and
+dispatches bounded local work; it never runs FFmpeg, ASR, diarization, or an LLM
+inline. Apply backpressure when the executor is full.
 
 The API container must not require GPU access.
 
@@ -789,22 +798,50 @@ Domain values may use `Date` and `bigint`. JSON/OpenAPI DTOs use ISO-8601 UTC st
 
 ---
 
-## 19. Queue Rules
+## 19. Redpanda Rules
 
-Initial queues:
+Initial command topics:
 
 ```text
-media
-transcription
-diarization
-summary
-export
-maintenance
+spokenbase.media.commands.v1
+spokenbase.transcription.commands.v1
+spokenbase.diarization.commands.v1
+spokenbase.summary.commands.v1
+spokenbase.export.commands.v1
+spokenbase.maintenance.commands.v1
 ```
 
-Queue payloads contain identifiers and routing metadata, never media bytes, transcript bodies, provider keys, raw provider results, or signed URLs with unnecessarily long lifetimes.
+Shared result topics:
 
-Separate queue producers and processors. Progress must reflect information actually available from the worker or provider; never invent precise percentages.
+```text
+spokenbase.processing.events.v1
+spokenbase.processing.dead-letter.v1
+```
+
+Rules:
+
+- key commands and events by `processingRunId` for stable per-topic partitioning;
+- never rely on ordering across topics; the PostgreSQL state machine emits a later stage only after its prerequisites are durable;
+- assign each command topic to exactly one intended consumer group unless broadcast is explicit;
+- use a distinct command topic when routing work to a different homogeneous capability pool;
+- keep worker IDs stable across restarts and unique inside a deployment;
+- keep PostgreSQL as the authoritative processing state;
+- write processing state and an outbox record in one PostgreSQL transaction, then publish from the outbox;
+- disable automatic offset commits;
+- commit a command only after an idempotent claim or terminal rejection is durable;
+- use leases and explicit retry commands for long-running work rather than holding a broker transaction open;
+- make every command and event idempotent because delivery is at least once;
+- route exhausted retries to the dead-letter topic with identifiers and safe error metadata, never the raw payload;
+- declare topics, partitions, replication, retention, and cleanup policies explicitly;
+- use only Redpanda Community features in the public reference deployment;
+- do not make application behavior depend on a Redpanda trial or enterprise license;
+- use one broker and replication factor one only in development Compose;
+- require a production topology with at least three brokers, replication factor three, TLS, SASL, and monitored consumer lag;
+- do not depend on Redpanda Console at runtime.
+
+Records contain identifiers and routing metadata, never media bytes, transcript bodies, provider keys, raw provider results, or long-lived signed URLs.
+
+Separate producers and consumers. Progress must reflect information actually available from the worker or provider; never invent precise percentages. Redpanda is not a delayed-job scheduler: retry timing and lease recovery belong to the application state machine and maintenance scheduler.
 
 ---
 
@@ -898,7 +935,7 @@ Reference services:
 web
 api
 postgres
-redis
+redpanda
 optional minio
 optional cpu or nvidia worker
 ```
@@ -907,7 +944,7 @@ Rules:
 
 - Nuxt and Nest run as separate services;
 - `web` and `api` remain stateless except that local-filesystem mode gives `api` a documented persistent media volume;
-- PostgreSQL, Redis, and S3 endpoints are externally configurable;
+- PostgreSQL, Redpanda, and S3 endpoints are externally configurable;
 - application code must not access the Docker socket;
 - application configuration must not depend on Compose service names;
 - migrations run as an explicit release command or one-shot job;
@@ -963,7 +1000,7 @@ Build:
 - Nuxt web service;
 - NestJS API service;
 - PostgreSQL;
-- Redis/BullMQ;
+- Redpanda;
 - local filesystem storage;
 - Better Auth local credentials;
 - one-time first-run administrator and initial organization setup;

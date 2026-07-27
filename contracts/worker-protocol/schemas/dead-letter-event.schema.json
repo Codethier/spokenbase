@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.spokenbase.dev/worker-protocol/v1/dead-letter-event.schema.json",
+  "title": "Spokenbase dead-letter event",
+  "type": "object",
+  "required": [
+    "protocolVersion",
+    "messageId",
+    "idempotencyKey",
+    "createdAt",
+    "eventType",
+    "workerId",
+    "sourceTopic",
+    "sourcePartition",
+    "sourceOffset",
+    "payloadSha256",
+    "errorCode"
+  ],
+  "properties": {
+    "protocolVersion": {
+      "const": "1"
+    },
+    "messageId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "eventType": {
+      "const": "dead-letter"
+    },
+    "workerId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sourceTopic": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 249
+    },
+    "sourcePartition": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sourceOffset": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "payloadSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "errorCode": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    }
+  },
+  "additionalProperties": false,
+  "x-spdx-license-identifier": "Apache-2.0"
+}

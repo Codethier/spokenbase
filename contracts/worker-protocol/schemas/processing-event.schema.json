@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.spokenbase.dev/worker-protocol/v1/processing-event.schema.json",
+  "title": "Spokenbase processing event",
+  "type": "object",
+  "required": [
+    "protocolVersion",
+    "messageId",
+    "causationMessageId",
+    "idempotencyKey",
+    "createdAt",
+    "eventType",
+    "processingRunId",
+    "organizationId",
+    "stage",
+    "workerId"
+  ],
+  "properties": {
+    "protocolVersion": {
+      "const": "1"
+    },
+    "messageId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "causationMessageId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "eventType": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "started",
+        "progress",
+        "completed",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "processingRunId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "organizationId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "stage": {
+      "enum": [
+        "ingest",
+        "validate",
+        "inspect",
+        "normalize",
+        "voice-activity-detection",
+        "transcribe",
+        "diarize",
+        "align",
+        "clean",
+        "apply-glossary",
+        "summarize",
+        "index",
+        "export",
+        "maintenance"
+      ]
+    },
+    "workerId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "errorCode": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 128
+    },
+    "retryable": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "x-spdx-license-identifier": "Apache-2.0"
+}

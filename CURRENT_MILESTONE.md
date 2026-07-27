@@ -10,7 +10,9 @@ Current work is limited to proving:
 - clean-export installation, typechecking, tests, and builds;
 - public-boundary verification;
 - Nuxt and NestJS skeleton applications;
-- the worker-protocol schema skeleton;
+- the Redpanda command/event protocol schema skeleton;
+- a minimal FastAPI worker with health, readiness, and capability endpoints;
+- Redpanda topic bootstrap and reference Compose wiring;
 - OCI image builds and Docker Compose validation;
 - public licensing and contributor files.
 

@@ -8,11 +8,11 @@ The intended Community deployment is deliberately lean:
 ```text
 Browser
   -> Nuxt
-  -> NestJS modular monolith
-     -> PostgreSQL
-     -> Redis/BullMQ
-     -> local filesystem or S3-compatible storage
-     -> optional pull-based CPU/GPU workers
+     -> NestJS modular monolith
+        -> PostgreSQL
+        -> Redpanda
+        -> local filesystem or S3-compatible storage
+        -> optional Redpanda-fed FastAPI CPU/GPU workers
 ```
 
 The project is currently at **Milestone 0 — Repository Bootstrap**. The

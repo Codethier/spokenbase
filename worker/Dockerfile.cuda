@@ -6,15 +6,22 @@
 FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
 
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends python3 python3-pip \
+    && apt-get install --yes --no-install-recommends ffmpeg python3 python3-pip \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 spokenbase
 
 WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    WORKER_HTTP_HOST=0.0.0.0
+
 COPY pyproject.toml README.md ./
 COPY src ./src
 
 RUN pip3 install --break-system-packages --no-cache-dir .
 
 USER spokenbase
-CMD ["python3", "-c", "import spokenbase_worker; print(spokenbase_worker.__version__)"]
+EXPOSE 8080
+HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
+  CMD ["python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2)"]
+CMD ["python3", "-m", "spokenbase_worker"]
